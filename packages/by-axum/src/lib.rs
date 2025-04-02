@@ -4,6 +4,10 @@ mod docs;
 use std::sync::Arc;
 
 use ::axum::{Extension, Json, Router};
+use http::{
+    header::{AUTHORIZATION, CONTENT_TYPE},
+    Method,
+};
 pub use logger as log;
 use router::BiyardRouter;
 
@@ -17,6 +21,7 @@ pub mod rest_api_adapter;
 pub use by_types::ApiError;
 pub type Result<T, E> = std::result::Result<Json<T>, ApiError<E>>;
 pub use schemars;
+use tower_http::cors::AllowOrigin;
 
 pub fn new() -> BiyardRouter {
     let _ = tracing_subscriber::fmt()
@@ -37,11 +42,22 @@ pub fn finishing(app: BiyardRouter) -> Router {
         .layer(Extension(Arc::new(api)))
 }
 
+pub fn with_cors(app: BiyardRouter)
 pub async fn serve(
     _tcp_listener: tokio::net::TcpListener,
     app: BiyardRouter,
 ) -> std::result::Result<(), Box<dyn std::error::Error>> {
-    let app = app.layer(tower_http::cors::CorsLayer::permissive());
+    // FIXME: Add CORS Layer Outer-side
+    // The current CORS configuration is hardcoded within the by_axum package, making it difficult to control flexibly from the outside.
+    // the CORS Layer needs to be configurable from outside the by_axum package.
+
+    let app = app.layer(
+        tower_http::cors::CorsLayer::new()
+            .allow_origin(AllowOrigin::exact("http://127.0.0.1:8080".parse().unwrap()))
+            .allow_credentials(true)
+            .allow_methods([Method::GET, Method::POST, Method::OPTIONS])
+            .allow_headers(vec![CONTENT_TYPE, AUTHORIZATION]),
+    );
     let mut api = app.open_api;
     let app = app
         .inner
