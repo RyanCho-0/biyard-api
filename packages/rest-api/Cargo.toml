@@ -16,10 +16,13 @@ ring = "=0.17.8"
 serde = "1.0.217"
 simple_asn1 = "0.6.3"
 tracing = "0.1.41"
+gloo-net = { version = "0.6.0" }
+web-sys = { version = "0.3.77" }
 
 [dev-dependencies]
 tokio = { version = "1.42.0", features = ["full"] }
 
 [features]
-default=[]
-web=["ring/wasm32_unknown_unknown_js"]
+default = ["server"]
+server = []
+web = ["ring/wasm32_unknown_unknown_js"]

@@ -214,18 +214,36 @@ pub async fn send(req: RequestBuilder) -> reqwest::Result<reqwest::Response> {
 pub async fn get<T, E>(url: &str) -> Result<T, E>
 where
     T: serde::de::DeserializeOwned,
-    E: serde::de::DeserializeOwned + From<reqwest::Error>,
+    E: serde::de::DeserializeOwned + From<reqwest::Error> + From<gloo_net::Error>,
 {
     tracing::debug!("GET {}", url);
-    let client = reqwest::Client::builder().build()?;
+    #[cfg(feature = "web")]
+    {
+        tracing::debug!("Get(Web) {}", url);
+        let req = gloo_net::http::Request::get(url)
+            .header("Content-Type", "application/json")
+            .credentials(web_sys::RequestCredentials::Include);
+        let res = req.send().await?;
+        let status_code = res.status();
+        if status_code < 400 {
+            Ok(res.json().await?)
+        } else {
+            Err(res.json().await?)
+        }
+    }
+    #[cfg(not(feature = "web"))]
+    {
+        tracing::debug!("Get(Non-web) {}", url);
+        let client = reqwest::Client::builder().build()?;
 
-    let req = client.get(url);
-    let res = send(req).await?;
+        let req = client.get(url);
+        let res = send(req).await?;
 
-    if res.status().is_success() {
-        Ok(res.json().await?)
-    } else {
-        Err(res.json().await?)
+        if res.status().is_success() {
+            Ok(res.json().await?)
+        } else {
+            Err(res.json().await?)
+        }
     }
 }
 
@@ -240,7 +258,7 @@ where
 pub async fn get_with_query<T, E, P>(url: &str, query_params: &P) -> Result<T, E>
 where
     T: serde::de::DeserializeOwned,
-    E: serde::de::DeserializeOwned + From<reqwest::Error>,
+    E: serde::de::DeserializeOwned + From<reqwest::Error> + From<gloo_net::Error>,
     P: serde::Serialize + ?Sized,
 {
     let client = reqwest::Client::builder().build()?;
@@ -259,16 +277,38 @@ pub async fn post<R, T, E>(url: &str, body: R) -> Result<T, E>
 where
     R: Serialize,
     T: serde::de::DeserializeOwned,
-    E: serde::de::DeserializeOwned + From<reqwest::Error>,
+    E: serde::de::DeserializeOwned + From<reqwest::Error> + From<gloo_net::Error>,
 {
-    let client = reqwest::Client::builder().build()?;
+    #[cfg(feature = "web")]
+    {
+        tracing::debug!("POST(Web) {}", url);
+        let req = gloo_net::http::Request::post(url)
+            .header("Content-Type", "application/json")
+            .credentials(web_sys::RequestCredentials::Include)
+            .json(&body)
+            .unwrap();
+        let res = req.send().await.unwrap();
+        let status_code = res.status();
+        if status_code < 400 {
+            Ok(res.json().await?)
+        } else {
+            Err(res.json().await?)
+        }
+    }
 
-    let req = client.post(url).json(&body);
-    let res = send(req).await?;
+    #[cfg(not(feature = "web"))]
+    {
+        tracing::debug!("POST(Non-Web) {}", url);
+        // let client = reqwest::Client::builder().cookie_store(true).build()?;
+        let client = reqwest::Client::builder().build()?;
 
-    if res.status().is_success() {
-        Ok(res.json().await?)
-    } else {
-        Err(res.json().await?)
+        let req = client.post(url).json(&body);
+        let res = send(req).await?;
+
+        if res.status().is_success() {
+            Ok(res.json().await?)
+        } else {
+            Err(res.json().await?)
+        }
     }
 }
