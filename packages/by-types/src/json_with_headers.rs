@@ -34,6 +34,18 @@ impl<T> JsonWithHeaders<T> {
         self
     }
 
+    pub fn with_secure_cookie(mut self, value: &str) -> Self {
+        let cookie = format!("Bearer={}; Path=/; HttpOnly; Secure; SameSite=None;", value);
+        self.headers
+            .insert(header::SET_COOKIE, HeaderValue::from_str(&cookie).unwrap());
+        self.headers.insert(
+            header::ACCESS_CONTROL_ALLOW_CREDENTIALS,
+            HeaderValue::from_str("true").unwrap(),
+        );
+        tracing::debug!("cookie: {:?}", self.headers);
+        self
+    }
+
     pub fn with_authorization(mut self, auth_type: &str, value: &str) -> Self {
         self.headers.insert(
             header::AUTHORIZATION,
